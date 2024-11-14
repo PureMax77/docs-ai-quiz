@@ -1,7 +1,9 @@
 import streamlit as st
+import json
 from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from utils.llm_utils import DevDocsParser
+from langchain.schema import BaseOutputParser
 
 from dotenv import load_dotenv
 import os
@@ -12,6 +14,12 @@ load_dotenv()
 # Streamlit UI
 if "parsed_sections" not in st.session_state:
     st.session_state.parsed_sections = None
+
+if "generate_quiz" not in st.session_state:
+    st.session_state.generate_quiz = False
+
+if "quiz_answers" not in st.session_state:
+    st.session_state.quiz_answers = None
 
 st.set_page_config(page_title="DocsStudyGPT", page_icon="💼")
 
@@ -30,6 +38,16 @@ llm = ChatOpenAI(
 )
 
 
+class JsonOutputParser(BaseOutputParser):
+    def parse(self, text):
+        text = text.replace("```", "").replace("json", "")
+        return json.loads(text)
+
+
+output_parser = JsonOutputParser()
+
+
+@st.cache_data(show_spinner="퀴즈 생성중...")
 def generate_dev_quiz(section_content):
     """개발 문서 기반 퀴즈 생성"""
     # 섹션 내용을 텍스트로 변환
@@ -41,33 +59,120 @@ def generate_dev_quiz(section_content):
             formatted_content += f"\t코드 예제:\n{item['content']}\n\n"
 
     template = """
-    다음 개발 문서 내용을 기반으로 3개 이하의 퀴즈를 만들어주세요.
+    당신은 매우 강력한 개발 관련 퀴즈 생성기입니다.
+    다음 개발문서 내용을 기반으로 2~4개의 퀴즈를 만들어주세요.
     퀴즈는 실제 개발자 면접이나 기술 테스트에서 나올 수 있는 수준으로 만들어주세요.
     
-    내용:
+    개발문서 내용:
     {content}
     
-    다음 형식으로 작성해주세요:
+    당신은 문제를 JSON 형식으로 포맷합니다.
+    (o)이 있는 객관식 문항이 정답입니다.     
     
-    Q1. [기술적인 질문]
-    1) [보기1]
-    2) [보기2]
-    3) [보기3]
-    4) [보기4]
-    정답: [번호]
+    예시 Input:
+    Question: Next.js에서 새로운 페이지를 생성할 때 사용하는 파일 이름은?
+    Answers: component.js|style.js|page.js(o)|route.js
+
+    Question: Next.js에서 이미지나 폰트 같은 정적 파일은 어느 폴더에 위치해야 하나요?
+    Answers: src/|public/(o)|assets/|static/
+
+    Question: Next.js 개발 서버의 기본 포트 번호는?
+    Answers: 5000번|8080번|3000번(o)|4000번
     
-    설명: [정답에 대한 기술적 설명과 실제 사용 사례]
+    예시 Output:
+    ```json
+    {{
+        "questions": [
+            {{
+                "question": "Next.js에서 새로운 페이지를 생성할 때 사용하는 파일 이름은?",
+                "answers": [
+                    {{
+                        "answer": "component.js",
+                        "correct": false,
+                        "reason": ""
+                    }},
+                    {{
+                        "answer": "style.js",
+                        "correct": false,
+                        "reason": ""
+                    }},
+                    {{
+                        "answer": "page.js",
+                        "correct": true,
+                        "reason": "Next.js의 App Router에서는 page.js 파일을 사용하여 새로운 페이지를 생성합니다. 이 파일은 해당 라우트의 UI를 정의하며, 폴더 구조가 곧 URL 경로가 됩니다."
+                    }},
+                    {{
+                        "answer": "route.js",
+                        "correct": false,
+                        "reason": ""
+                    }}
+                ]
+            }},
+            {{
+                "question": "Next.js에서 이미지나 폰트 같은 정적 파일은 어느 폴더에 위치해야 하나요?",
+                "answers": [
+                    {{
+                        "answer": "src/",
+                        "correct": false,
+                        "reason": ""
+                    }},
+                    {{
+                        "answer": "public/",
+                        "correct": true,
+                        "reason": "Next.js에서 public/ 폴더는 정적 자산을 저장하는 특별한 디렉토리입니다. 이 폴더 안에 있는 파일들은 코드에서 '/' 루트 경로로 직접 접근할 수 있습니다."
+                    }},
+                    {{
+                        "answer": "assets/",
+                        "correct": false,
+                        "reason": ""
+                    }},
+                    {{
+                        "answer": "static/",
+                        "correct": false,
+                        "reason": ""
+                    }}
+                ]
+            }},
+            {{
+                "question": "Next.js 개발 서버의 기본 포트 번호는?",
+                "answers": [
+                    {{
+                        "answer": "5000번",
+                        "correct": false,
+                        "reason": ""
+                    }},
+                    {{
+                        "answer": "8080번",
+                        "correct": false,
+                        "reason": ""
+                    }},
+                    {{
+                        "answer": "3000번",
+                        "correct": true,
+                        "reason": "Next.js 개발 서버는 기본적으로 3000번 포트에서 실행됩니다. 'npm run dev' 또는 'yarn dev' 명령어 실행 시 자동으로 http://localhost:3000 에서 서버가 시작됩니다."
+                    }},
+                    {{
+                        "answer": "4000번",
+                        "correct": false,
+                        "reason": ""
+                    }}
+                ]
+            }}
+        ]
+    }}
+    ```
+
+    설명: [
     
     참고:
-    - 단순 암기가 아닌 개념 이해를 테스트하는 문제를 만들어주세요
     - 가능한 경우 코드박스를 포함한 코드 예제도 보기에 만들어주세요
     - 실무에서 마주칠 수 있는 상황을 반영해주세요
-    - 내용과 직접 관련된 퀴즈만 생성하고 없는 내용을 상상으로 만들지마세요 
+    - 내용과 직접 관련된 퀴즈만 생성하고, 절대로 없는 내용을 상상으로 만들지마세요!
     """
 
     prompt = PromptTemplate(input_variables=["content"], template=template)
 
-    chain = prompt | llm
+    chain = prompt | llm | output_parser
 
     return chain.invoke({"content": formatted_content})
 
@@ -93,42 +198,45 @@ if url and st.button("문서 분석"):
 # 문서 분석 결과가 있을 때 섹션 선택과 퀴즈 생성 UI 표시
 if st.session_state.parsed_sections:
     st.success("문서 분석 완료!")
-    st.write(st.session_state.parsed_sections)
+    # st.write(st.session_state.parsed_sections)
     selected_section = st.selectbox(
         "퀴즈를 생성할 섹션을 선택하세요:",
         options=list(st.session_state.parsed_sections.keys()),
     )
+    # 퀴즈 생성 버튼 (한번 True가 되면 더 이상 변경 불가)
+    if not st.session_state.generate_quiz:
+        st.session_state.generate_quiz = st.button("퀴즈 생성")
 
-    if st.button("퀴즈 생성"):
-        with st.spinner("퀴즈를 생성하는 중..."):
-            # 선택된 섹션의 내용으로 퀴즈 생성
-            quiz = generate_dev_quiz(st.session_state.parsed_sections[selected_section])
 
-            # 퀴즈 표시
-            st.markdown("### 생성된 퀴즈")
-            st.write(quiz.content)
+if st.session_state.generate_quiz:
+    # 선택된 섹션의 내용으로 퀴즈 생성
+    res = generate_dev_quiz(st.session_state.parsed_sections[selected_section])
+    # 퀴즈 표시
+    with st.form("questions_form"):
+        for question in res["questions"]:
+            st.write(question["question"])
+            value = st.radio(
+                "Select an option.",
+                [answer["answer"] for answer in question["answers"]],
+                index=None,
+            )
 
-            # 원본 섹션 내용 표시 (접을 수 있는 형태로)
-            with st.expander("원본 섹션 내용"):
-                for item in st.session_state.parsed_sections[selected_section]:
-                    if item["type"] == "text":
-                        st.write(item["content"])
-                    else:
-                        st.code(item["content"])
+            if value is not None:  # 답변을 선택했을 때만 실행
+                # 선택된 답변에 해당하는 answer 객체 찾기
+                selected_answer = next(
+                    answer
+                    for answer in question["answers"]
+                    if answer["answer"] == value
+                )
 
-# 사이드바에 도움말 추가
-with st.sidebar:
-    st.header("사용 가이드")
-    st.markdown(
-        """
-    ### 특징
-    - 개발 문서의 구조를 이해하고 섹션별로 분석
-    - 코드 예제를 포함한 퀴즈 생성
-    - 실제 기술 면접 스타일의 문제 생성
-    
-    ### 사용 팁
-    1. 전체 문서 대신 특정 개념이나 API 문서 페이지를 입력하면 더 집중된 퀴즈 생성 가능
-    2. 선택한 섹션의 내용을 확인하고 퀴즈의 적절성 검토
-    3. 코드 예제가 포함된 섹션을 선택하면 더 실용적인 퀴즈 생성
-    """
-    )
+                if selected_answer["correct"]:
+                    st.success("정답입니다!")
+                    st.write(selected_answer["reason"])
+                else:
+                    st.error("틀렸습니다!")
+                    correct_answer = next(
+                        answer for answer in question["answers"] if answer["correct"]
+                    )
+                    st.write(correct_answer["reason"])
+
+        button = st.form_submit_button("제출")  # 버튼 텍스트 추가
