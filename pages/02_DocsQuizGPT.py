@@ -25,6 +25,7 @@ st.markdown(
 """
 )
 
+
 # Streamlit UI
 if "openai_api_key" not in st.session_state:
     st.session_state.openai_api_key = ""
@@ -104,7 +105,7 @@ def generate_dev_quiz(section_title, section_content):
 
     template = """
     당신은 매우 강력한 개발 관련 퀴즈 생성기입니다.
-    다음 개발문서 내용을 기반으로 2~4개의 퀴즈를 만들어주세요.
+    다음 개발문서 내용을 기반으로 2~5개의 퀴즈를 만들어주세요.
     퀴즈는 실제 개발자 면접이나 기술 테스트에서 나올 수 있는 수준으로 만들어주세요.
     
     개발문서 내용:
@@ -116,9 +117,17 @@ def generate_dev_quiz(section_title, section_content):
     Question: Next.js에서 새로운 페이지를 생성할 때 사용하는 파일 이름은?
     Answers: component.js|style.js|page.js|route.js
 
-    Question: Next.js에서 이미지나 폰트 같은 정적 파일은 어느 폴더에 위치해야 하나요?
-    Answers: src/|public/|assets/|static/
+    Question: ```typescript
+    export default function handler(req, res) {{
+        if (req.method === 'GET') {{
+        res.status(200).json({{ message: 'Hello' }})
+        }}
+    }}
 
+    // 위 코드는 Next.js의 어떤 라우터 방식에서 사용되나요?
+    ```
+    Answers: Pages Router|App Router|Server Router|API Router
+    
     Question: Next.js 개발 서버의 기본 포트 번호는?
     Answers: 5000번|8080번|3000번|4000번
     
@@ -128,89 +137,85 @@ def generate_dev_quiz(section_title, section_content):
         "questions": [
             {{
                 "question": "Next.js에서 새로운 페이지를 생성할 때 사용하는 파일 이름은?",
+                "type": "text",
                 "answers": [
                     {{
                         "answer": "component.js",
-                        "correct": false,
-                        "reason": ""
+                        "correct": false
                     }},
                     {{
                         "answer": "style.js",
-                        "correct": false,
-                        "reason": ""
+                        "correct": false
                     }},
                     {{
                         "answer": "page.js",
-                        "correct": true,
-                        "reason": "Next.js의 App Router에서는 page.js 파일을 사용하여 새로운 페이지를 생성합니다. 이 파일은 해당 라우트의 UI를 정의하며, 폴더 구조가 곧 URL 경로가 됩니다."
+                        "correct": true
                     }},
                     {{
                         "answer": "route.js",
-                        "correct": false,
-                        "reason": ""
+                        "correct": false
                     }}
-                ]
+                ],
+                "reason": "Next.js의 App Router에서는 page.js 파일을 사용하여 새로운 페이지를 생성합니다. 이 파일은 해당 라우트의 UI를 정의하며, 폴더 구조가 곧 URL 경로가 됩니다."
             }},
             {{
-                "question": "Next.js에서 이미지나 폰트 같은 정적 파일은 어느 폴더에 위치해야 하나요?",
+                "question": "export default function handler(req, res) {{\\n  if (req.method === 'GET') {{\\n    res.status(200).json({{ message: 'Hello' }})\\n  }}\\n}}\\n\\n// 위 코드는 Next.js의 어떤 라우터 방식에서 사용되나요?",
+                "type": "code",
+                "code_type": "typescript",
                 "answers": [
                     {{
-                        "answer": "src/",
-                        "correct": false,
-                        "reason": ""
+                        "answer": "Pages Router",
+                        "correct": true
                     }},
                     {{
-                        "answer": "public/",
-                        "correct": true,
-                        "reason": "Next.js에서 public/ 폴더는 정적 자산을 저장하는 특별한 디렉토리입니다. 이 폴더 안에 있는 파일들은 코드에서 '/' 루트 경로로 직접 접근할 수 있습니다."
+                        "answer": "App Router",
+                        "correct": false
                     }},
                     {{
-                        "answer": "assets/",
-                        "correct": false,
-                        "reason": ""
+                        "answer": "Server Router",
+                        "correct": false
                     }},
                     {{
-                        "answer": "static/",
-                        "correct": false,
-                        "reason": ""
+                        "answer": "API Router",
+                        "correct": false
                     }}
-                ]
+                ],
+                "reason": "이 코드는 Pages Router의 전형적인 API 라우트 핸들러 패턴입니다. App Router에서는 이런 방식 대신 HTTP 메서드명을 함수명으로 사용합니다."
             }},
             {{
                 "question": "Next.js 개발 서버의 기본 포트 번호는?",
+                "type": "text",
                 "answers": [
                     {{
                         "answer": "5000번",
-                        "correct": false,
-                        "reason": ""
+                        "correct": false
                     }},
                     {{
                         "answer": "8080번",
-                        "correct": false,
-                        "reason": ""
+                        "correct": false
                     }},
                     {{
                         "answer": "3000번",
-                        "correct": true,
-                        "reason": "Next.js 개발 서버는 기본적으로 3000번 포트에서 실행됩니다. 'npm run dev' 또는 'yarn dev' 명령어 실행 시 자동으로 http://localhost:3000 에서 서버가 시작됩니다."
+                        "correct": true
                     }},
                     {{
                         "answer": "4000번",
-                        "correct": false,
-                        "reason": ""
+                        "correct": false
                     }}
-                ]
+                ],
+                "reason": "Next.js 개발 서버는 기본적으로 3000번 포트에서 실행됩니다. 'npm run dev' 또는 'yarn dev' 명령어 실행 시 자동으로 http://localhost:3000 에서 서버가 시작됩니다."
             }}
         ]
     }}
     ```
-
-    설명: [
     
     참고:
-    - 가능한 경우 코드박스를 포함한 코드 예제도 보기에 만들어주세요
     - 실무에서 마주칠 수 있는 상황을 반영해주세요
     - 내용과 직접 관련된 퀴즈만 생성하고, 절대로 없는 내용을 상상으로 만들지마세요!
+    - 코드형 질문의 경우:
+        * question에 실제 코드와 질문을 주석으로 포함해주세요
+        * code_type을 반드시 명시해주세요 (python, javascript, typescript 등)
+        * answer는 텍스트 형태로 작성해주세요
     """
 
     prompt = PromptTemplate(input_variables=["content"], template=template)
@@ -250,7 +255,9 @@ with st.sidebar:
 
 
 if "openai_api_key" not in st.session_state or not st.session_state["openai_api_key"]:
-    st.warning("Please enter your OpenAI API key in the sidebar to continue.")
+    st.warning(
+        "퀴즈 진행을 위해서 좌측 사이드바에 당신의 OpenAI API key를 입력해주세요."
+    )
 else:
     if url:
         try:
@@ -284,8 +291,19 @@ else:
         res = generate_dev_quiz(selected_section, section_data)
         # 퀴즈 표시
         with st.form("questions_form"):
-            for question in res["questions"]:
-                st.write(question["question"])
+            for i, question in enumerate(res["questions"]):
+                if i != 0:
+                    st.write("")
+                    st.write("")
+                if question["type"] == "text":
+                    st.write(question["question"])
+                else:
+                    st.code(
+                        question["question"],
+                        language=question["code_type"],
+                        wrap_lines=True,
+                    )
+
                 value = st.radio(
                     "Select an option.",
                     [answer["answer"] for answer in question["answers"]],
@@ -302,7 +320,7 @@ else:
 
                     if selected_answer["correct"]:
                         st.success("정답입니다!\n\n")
-                        st.info(selected_answer["reason"])
+                        st.info(question["reason"])
                     else:
                         st.error("틀렸습니다!\n\n")
                         # enumerate와 함께 인덱스와 답안 모두 가져오기
@@ -312,7 +330,7 @@ else:
                             if answer["correct"]
                         )
                         st.info(
-                            f"{correct_index}번이 정답입니다.\n\n{correct_answer['reason']}"
+                            f"{correct_index}번이 정답입니다.\n\n{question['reason']}"
                         )
 
             button = st.form_submit_button("제출")  # 버튼 텍스트 추가
